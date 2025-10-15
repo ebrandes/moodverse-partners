@@ -1,5 +1,4 @@
-import { ReactNode } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/auth";
 
 const navItems = [
@@ -14,7 +13,7 @@ const navItems = [
   { href: "/onboarding", label: "Onboarding" },
 ];
 
-export default function Layout({ children }: { children: ReactNode }) {
+export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, setUser } = useAuthStore();
@@ -66,7 +65,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 p-4 md:p-6">
           <div className="mb-4 text-sm text-[#666]">{user?.email}</div>
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
