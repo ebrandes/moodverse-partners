@@ -1,14 +1,15 @@
-import { ReactNode } from "react";
+import { ReactNode, HTMLAttributes } from "react";
 
 export function Card({
   className = "",
   children,
+  ...rest
 }: {
   className?: string;
   children: ReactNode;
-}) {
+} & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`bg-white border border-[#e5e5e5] rounded-xl ${className}`}>
+    <div {...rest} className={`bg-white border border-[#e5e5e5] rounded-xl ${className}`}>
       {children}
     </div>
   );
@@ -41,9 +42,10 @@ export function CardTitle({
 export function CardContent({
   className = "",
   children,
+  ...rest
 }: {
   className?: string;
   children: ReactNode;
-}) {
-  return <div className={`px-6 pb-6 ${className}`}>{children}</div>;
+} & HTMLAttributes<HTMLDivElement>) {
+  return <div {...rest} className={`px-6 pb-6 ${className}`}>{children}</div>;
 }

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { getPaymentSummary, getPayments, requestWithdrawal, updatePaymentInfo, getMe } from "../lib/api";
+import {
+  getPaymentSummary,
+  requestWithdrawal,
+  updatePaymentInfo,
+  getMe,
+} from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 
 type PaymentSummary = {
