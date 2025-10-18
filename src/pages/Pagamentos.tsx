@@ -6,6 +6,7 @@ import {
   getMe,
 } from "../lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
+import { toast } from "sonner";
 
 type PaymentSummary = {
   available_balance: number;
@@ -29,12 +30,12 @@ type Payment = {
 };
 
 type PaymentInfo = {
-  payment_method: 'pix' | 'bank_transfer';
+  payment_method: "pix" | "bank_transfer";
   pix_key: string;
   bank_name: string;
   bank_agency: string;
   bank_account: string;
-  bank_account_type: 'checking' | 'savings';
+  bank_account_type: "checking" | "savings";
 };
 
 export default function PagamentosPage() {
@@ -43,17 +44,17 @@ export default function PagamentosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawing, setWithdrawing] = useState(false);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
-    payment_method: 'pix',
-    pix_key: '',
-    bank_name: '',
-    bank_agency: '',
-    bank_account: '',
-    bank_account_type: 'checking',
+    payment_method: "pix",
+    pix_key: "",
+    bank_name: "",
+    bank_agency: "",
+    bank_account: "",
+    bank_account_type: "checking",
   });
   const [savingPaymentInfo, setSavingPaymentInfo] = useState(false);
+  const [isEditingPaymentInfo, setIsEditingPaymentInfo] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -67,14 +68,18 @@ export default function PagamentosPage() {
       // Buscar dados do influencer para pegar informações de pagamento
       const userData = await getMe();
       const influencerProfile = userData.influencer_profile || {};
-      
+
       setPaymentInfo({
-        payment_method: influencerProfile.pix_key ? 'pix' : influencerProfile.bank_account ? 'bank_transfer' : 'pix',
-        pix_key: influencerProfile.pix_key || '',
-        bank_name: influencerProfile.bank_name || '',
-        bank_agency: influencerProfile.bank_agency || '',
-        bank_account: influencerProfile.bank_account || '',
-        bank_account_type: influencerProfile.bank_account_type || 'checking',
+        payment_method: influencerProfile.pix_key
+          ? "pix"
+          : influencerProfile.bank_account
+          ? "bank_transfer"
+          : "pix",
+        pix_key: influencerProfile.pix_key || "",
+        bank_name: influencerProfile.bank_name || "",
+        bank_agency: influencerProfile.bank_agency || "",
+        bank_account: influencerProfile.bank_account || "",
+        bank_account_type: influencerProfile.bank_account_type || "checking",
       });
 
       const summaryData = await getPaymentSummary();
@@ -98,37 +103,43 @@ export default function PagamentosPage() {
 
     try {
       await updatePaymentInfo(paymentInfo);
-      alert("Dados de pagamento salvos com sucesso!");
+      toast("Dados de pagamento salvos com sucesso!");
+      setIsEditingPaymentInfo(false);
       loadData();
     } catch (err: any) {
       console.error("Error saving payment info:", err);
-      alert(err?.response?.data?.error || "Erro ao salvar dados de pagamento");
+      toast(err?.response?.data?.error || "Erro ao salvar dados de pagamento");
     } finally {
       setSavingPaymentInfo(false);
     }
   };
 
   const handleWithdrawal = async () => {
-    if (!withdrawAmount || parseFloat(withdrawAmount) < (summary?.minimum_withdrawal || 50)) {
-      alert(`Valor mínimo para saque: R$ ${summary?.minimum_withdrawal || 50}`);
+    if (!summary) return;
+    const amount = summary.available_balance;
+    if (amount < (summary.minimum_withdrawal || 50)) {
+      toast(
+        `Saldo mínimo para saque: R$ ${(
+          summary.minimum_withdrawal || 50
+        ).toFixed(2)}`
+      );
       return;
     }
 
     setWithdrawing(true);
     try {
       await requestWithdrawal({
-        amount: parseFloat(withdrawAmount),
-        payment_method: "pix",
+        amount,
+        payment_method: paymentInfo.payment_method,
         notes: "Solicitação via portal partners",
       });
-      
-      alert("Solicitação de saque enviada com sucesso!");
+
+      toast("Solicitação de saque enviada com sucesso!");
       setShowWithdrawModal(false);
-      setWithdrawAmount("");
       loadData();
     } catch (err: any) {
       console.error("Error requesting withdrawal:", err);
-      alert(err?.response?.data?.error || "Erro ao solicitar saque");
+      toast(err?.response?.data?.error || "Erro ao solicitar saque");
     } finally {
       setWithdrawing(false);
     }
@@ -147,7 +158,14 @@ export default function PagamentosPage() {
     return (
       <div style={{ padding: 24 }}>
         <h1 style={{ fontSize: 24, marginBottom: 8 }}>Pagamentos</h1>
-        <div style={{ background: "#fee2e2", color: "#991b1b", padding: 12, borderRadius: 8 }}>
+        <div
+          style={{
+            background: "#fee2e2",
+            color: "#991b1b",
+            padding: 12,
+            borderRadius: 8,
+          }}
+        >
           {error}
         </div>
       </div>
@@ -161,177 +179,373 @@ export default function PagamentosPage() {
         Gerencie seus ganhos e solicite saques
       </p>
 
-      {/* Formulário de Dados Bancários */}
+      {/* Dados Bancários - Summary + Edit */}
       <Card style={{ marginBottom: 24 }}>
         <CardHeader>
-          <CardTitle>Dados Bancários</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSavePaymentInfo}>
-            {/* Método de Pagamento */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                Método de Pagamento
-              </label>
-              <div style={{ display: "flex", gap: 16 }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <input
-                    type="radio"
-                    name="payment_method"
-                    value="pix"
-                    checked={paymentInfo.payment_method === 'pix'}
-                    onChange={(e) => setPaymentInfo({ ...paymentInfo, payment_method: e.target.value as 'pix' })}
-                  />
-                  <span>PIX</span>
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                  <input
-                    type="radio"
-                    name="payment_method"
-                    value="bank_transfer"
-                    checked={paymentInfo.payment_method === 'bank_transfer'}
-                    onChange={(e) => setPaymentInfo({ ...paymentInfo, payment_method: e.target.value as 'bank_transfer' })}
-                  />
-                  <span>Transferência Bancária</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Campos PIX */}
-            {paymentInfo.payment_method === 'pix' && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                  Chave PIX
-                </label>
-                <input
-                  type="text"
-                  value={paymentInfo.pix_key}
-                  onChange={(e) => setPaymentInfo({ ...paymentInfo, pix_key: e.target.value })}
-                  placeholder="seuemail@example.com ou CPF/CNPJ"
-                  required
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    border: "1px solid #ddd",
-                    borderRadius: 8,
-                    fontSize: 14,
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Campos Transferência Bancária */}
-            {paymentInfo.payment_method === 'bank_transfer' && (
-              <>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                    Nome do Banco
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentInfo.bank_name}
-                    onChange={(e) => setPaymentInfo({ ...paymentInfo, bank_name: e.target.value })}
-                    placeholder="Ex: Banco do Brasil"
-                    required
-                    style={{
-                      width: "100%",
-                      padding: 10,
-                      border: "1px solid #ddd",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                      Agência
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentInfo.bank_agency}
-                      onChange={(e) => setPaymentInfo({ ...paymentInfo, bank_agency: e.target.value })}
-                      placeholder="1234"
-                      required
-                      style={{
-                        width: "100%",
-                        padding: 10,
-                        border: "1px solid #ddd",
-                        borderRadius: 8,
-                        fontSize: 14,
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                      Conta
-                    </label>
-                    <input
-                      type="text"
-                      value={paymentInfo.bank_account}
-                      onChange={(e) => setPaymentInfo({ ...paymentInfo, bank_account: e.target.value })}
-                      placeholder="56789-0"
-                      required
-                      style={{
-                        width: "100%",
-                        padding: 10,
-                        border: "1px solid #ddd",
-                        borderRadius: 8,
-                        fontSize: 14,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: "block", fontSize: 14, fontWeight: 500, marginBottom: 8 }}>
-                    Tipo de Conta
-                  </label>
-                  <select
-                    value={paymentInfo.bank_account_type}
-                    onChange={(e) => setPaymentInfo({ ...paymentInfo, bank_account_type: e.target.value as 'checking' | 'savings' })}
-                    required
-                    style={{
-                      width: "100%",
-                      padding: 10,
-                      border: "1px solid #ddd",
-                      borderRadius: 8,
-                      fontSize: 14,
-                    }}
-                  >
-                    <option value="checking">Conta Corrente</option>
-                    <option value="savings">Poupança</option>
-                  </select>
-                </div>
-              </>
-            )}
-
-            {/* Botão Salvar */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <CardTitle>Dados Bancários</CardTitle>
             <button
-              type="submit"
-              disabled={savingPaymentInfo}
+              onClick={() => setIsEditingPaymentInfo((v) => !v)}
               style={{
-                background: "#059669",
-                color: "white",
-                padding: "10px 24px",
+                background: isEditingPaymentInfo ? "#e5e7eb" : "#111827",
+                color: isEditingPaymentInfo ? "#111827" : "#fff",
+                padding: "8px 14px",
                 borderRadius: 8,
                 border: "none",
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: savingPaymentInfo ? "not-allowed" : "pointer",
-                opacity: savingPaymentInfo ? 0.6 : 1,
+                cursor: "pointer",
               }}
             >
-              {savingPaymentInfo ? "Salvando..." : "Salvar Dados Bancários"}
+              {isEditingPaymentInfo ? "Cancelar" : "Alterar"}
             </button>
-          </form>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!isEditingPaymentInfo && (
+            <div style={{ display: "grid", gap: 12 }}>
+              <div>
+                <span style={{ fontSize: 12, color: "#6b7280" }}>Método</span>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>
+                  {paymentInfo.payment_method === "pix"
+                    ? "PIX"
+                    : "Transferência Bancária"}
+                </div>
+              </div>
+              {paymentInfo.payment_method === "pix" ? (
+                <div>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
+                    Chave PIX
+                  </span>
+                  <div style={{ fontSize: 14 }}>
+                    {paymentInfo.pix_key
+                      ? `${paymentInfo.pix_key.slice(
+                          0,
+                          3
+                        )}••••••${paymentInfo.pix_key.slice(-3)}`
+                      : "—"}
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>
+                      Banco
+                    </span>
+                    <div style={{ fontSize: 14 }}>
+                      {paymentInfo.bank_name || "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>
+                      Agência
+                    </span>
+                    <div style={{ fontSize: 14 }}>
+                      {paymentInfo.bank_agency || "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: 12, color: "#6b7280" }}>
+                      Conta
+                    </span>
+                    <div style={{ fontSize: 14 }}>
+                      {paymentInfo.bank_account
+                        ? `••••${paymentInfo.bank_account.slice(-4)}`
+                        : "—"}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isEditingPaymentInfo && (
+            <form onSubmit={handleSavePaymentInfo}>
+              {/* Método de Pagamento */}
+              <div style={{ marginBottom: 20 }}>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: 14,
+                    fontWeight: 500,
+                    marginBottom: 8,
+                  }}
+                >
+                  Método de Pagamento
+                </label>
+                <div style={{ display: "flex", gap: 16 }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="pix"
+                      checked={paymentInfo.payment_method === "pix"}
+                      onChange={(e) =>
+                        setPaymentInfo({
+                          ...paymentInfo,
+                          payment_method: e.target.value as "pix",
+                        })
+                      }
+                    />
+                    <span>PIX</span>
+                  </label>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="payment_method"
+                      value="bank_transfer"
+                      checked={paymentInfo.payment_method === "bank_transfer"}
+                      onChange={(e) =>
+                        setPaymentInfo({
+                          ...paymentInfo,
+                          payment_method: e.target.value as "bank_transfer",
+                        })
+                      }
+                    />
+                    <span>Transferência Bancária</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Campos PIX */}
+              {paymentInfo.payment_method === "pix" && (
+                <div style={{ marginBottom: 20 }}>
+                  <label
+                    style={{
+                      display: "block",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Chave PIX
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentInfo.pix_key}
+                    onChange={(e) =>
+                      setPaymentInfo({
+                        ...paymentInfo,
+                        pix_key: e.target.value,
+                      })
+                    }
+                    placeholder="seuemail@example.com ou CPF/CNPJ"
+                    required
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      border: "1px solid #ddd",
+                      borderRadius: 8,
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Campos Transferência Bancária */}
+              {paymentInfo.payment_method === "bank_transfer" && (
+                <>
+                  <div style={{ marginBottom: 20 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Nome do Banco
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentInfo.bank_name}
+                      onChange={(e) =>
+                        setPaymentInfo({
+                          ...paymentInfo,
+                          bank_name: e.target.value,
+                        })
+                      }
+                      placeholder="Ex: Banco do Brasil"
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 10,
+                        border: "1px solid #ddd",
+                        borderRadius: 8,
+                        fontSize: 14,
+                      }}
+                    />
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: 16,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Agência
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentInfo.bank_agency}
+                        onChange={(e) =>
+                          setPaymentInfo({
+                            ...paymentInfo,
+                            bank_agency: e.target.value,
+                          })
+                        }
+                        placeholder="1234"
+                        required
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          border: "1px solid #ddd",
+                          borderRadius: 8,
+                          fontSize: 14,
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          marginBottom: 8,
+                        }}
+                      >
+                        Conta
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentInfo.bank_account}
+                        onChange={(e) =>
+                          setPaymentInfo({
+                            ...paymentInfo,
+                            bank_account: e.target.value,
+                          })
+                        }
+                        placeholder="56789-0"
+                        required
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          border: "1px solid #ddd",
+                          borderRadius: 8,
+                          fontSize: 14,
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 14,
+                        fontWeight: 500,
+                        marginBottom: 8,
+                      }}
+                    >
+                      Tipo de Conta
+                    </label>
+                    <select
+                      value={paymentInfo.bank_account_type}
+                      onChange={(e) =>
+                        setPaymentInfo({
+                          ...paymentInfo,
+                          bank_account_type: e.target.value as
+                            | "checking"
+                            | "savings",
+                        })
+                      }
+                      required
+                      style={{
+                        width: "100%",
+                        padding: 10,
+                        border: "1px solid #ddd",
+                        borderRadius: 8,
+                        fontSize: 14,
+                      }}
+                    >
+                      <option value="checking">Conta Corrente</option>
+                      <option value="savings">Poupança</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Botão Salvar */}
+              <button
+                type="submit"
+                disabled={savingPaymentInfo}
+                style={{
+                  background: "#059669",
+                  color: "white",
+                  padding: "10px 24px",
+                  borderRadius: 8,
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: savingPaymentInfo ? "not-allowed" : "pointer",
+                  opacity: savingPaymentInfo ? 0.6 : 1,
+                }}
+              >
+                {savingPaymentInfo ? "Salvando..." : "Salvar Dados Bancários"}
+              </button>
+            </form>
+          )}
         </CardContent>
       </Card>
 
       {/* Cards de Saldo */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 16,
+          marginBottom: 24,
+        }}
+      >
         <Card>
           <CardHeader>
             <CardTitle>Saldo Disponível</CardTitle>
@@ -377,25 +591,28 @@ export default function PagamentosPage() {
         </Card>
       </div>
 
-      {/* Botão de Saque */}
-      {summary?.can_withdraw && (
-        <button
-          onClick={() => setShowWithdrawModal(true)}
-          style={{
-            background: "#059669",
-            color: "white",
-            padding: "12px 24px",
-            borderRadius: 8,
-            border: "none",
-            fontSize: 16,
-            fontWeight: 600,
-            cursor: "pointer",
-            marginBottom: 24,
-          }}
-        >
-          Solicitar Saque
-        </button>
-      )}
+      {/* Botão de Saque (saldo total) */}
+      {summary?.can_withdraw &&
+        summary.available_balance >= (summary.minimum_withdrawal || 0) &&
+        !summary.pending_withdrawal &&
+        !summary.processing && (
+          <button
+            onClick={() => setShowWithdrawModal(true)}
+            style={{
+              background: "#059669",
+              color: "white",
+              padding: "12px 24px",
+              borderRadius: 8,
+              border: "none",
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: "pointer",
+              marginBottom: 24,
+            }}
+          >
+            Solicitar Saque
+          </button>
+        )}
 
       {!summary?.can_withdraw && summary && (
         <p style={{ fontSize: 14, color: "#6b7280", marginBottom: 24 }}>
@@ -414,28 +631,74 @@ export default function PagamentosPage() {
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #e5e5e5" }}>
-                    <th style={{ textAlign: "left", padding: "12px 8px", fontSize: 12, color: "#666" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontSize: 12,
+                        color: "#666",
+                      }}
+                    >
                       PERÍODO
                     </th>
-                    <th style={{ textAlign: "left", padding: "12px 8px", fontSize: 12, color: "#666" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontSize: 12,
+                        color: "#666",
+                      }}
+                    >
                       VALOR
                     </th>
-                    <th style={{ textAlign: "left", padding: "12px 8px", fontSize: 12, color: "#666" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontSize: 12,
+                        color: "#666",
+                      }}
+                    >
                       STATUS
                     </th>
-                    <th style={{ textAlign: "left", padding: "12px 8px", fontSize: 12, color: "#666" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontSize: 12,
+                        color: "#666",
+                      }}
+                    >
                       MÉTODO
                     </th>
-                    <th style={{ textAlign: "left", padding: "12px 8px", fontSize: 12, color: "#666" }}>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "12px 8px",
+                        fontSize: 12,
+                        color: "#666",
+                      }}
+                    >
                       DATA
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {payments.map((payment) => (
-                    <tr key={payment.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                      <td style={{ padding: "12px 8px", fontSize: 14 }}>{payment.period}</td>
-                      <td style={{ padding: "12px 8px", fontSize: 14, fontWeight: 600 }}>
+                    <tr
+                      key={payment.id}
+                      style={{ borderBottom: "1px solid #f5f5f5" }}
+                    >
+                      <td style={{ padding: "12px 8px", fontSize: 14 }}>
+                        {payment.period}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 8px",
+                          fontSize: 14,
+                          fontWeight: 600,
+                        }}
+                      >
                         R$ {payment.amount.toFixed(2)}
                       </td>
                       <td style={{ padding: "12px 8px", fontSize: 14 }}>
@@ -462,11 +725,23 @@ export default function PagamentosPage() {
                           {payment.status_display}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 8px", fontSize: 14 }}>{payment.payment_method}</td>
-                      <td style={{ padding: "12px 8px", fontSize: 14, color: "#6b7280" }}>
+                      <td style={{ padding: "12px 8px", fontSize: 14 }}>
+                        {payment.payment_method}
+                      </td>
+                      <td
+                        style={{
+                          padding: "12px 8px",
+                          fontSize: 14,
+                          color: "#6b7280",
+                        }}
+                      >
                         {payment.paid_at
-                          ? new Date(payment.paid_at).toLocaleDateString("pt-BR")
-                          : new Date(payment.created_at).toLocaleDateString("pt-BR")}
+                          ? new Date(payment.paid_at).toLocaleDateString(
+                              "pt-BR"
+                            )
+                          : new Date(payment.created_at).toLocaleDateString(
+                              "pt-BR"
+                            )}
                       </td>
                     </tr>
                   ))}
@@ -481,7 +756,7 @@ export default function PagamentosPage() {
         </CardContent>
       </Card>
 
-      {/* Modal de Saque */}
+      {/* Modal de Saque - confirmar saldo total */}
       {showWithdrawModal && (
         <div
           style={{
@@ -509,32 +784,24 @@ export default function PagamentosPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 style={{ fontSize: 20, fontWeight: 600, marginBottom: 16 }}>
-              Solicitar Saque
+              Confirmar Saque
             </h2>
-            <p style={{ fontSize: 14, color: "#666", marginBottom: 16 }}>
-              Saldo disponível: R$ {summary?.available_balance?.toFixed(2) || "0.00"}
+            <p style={{ fontSize: 14, color: "#374151", marginBottom: 8 }}>
+              Você deseja sacar o saldo total disponível?
             </p>
-            <label style={{ display: "block", marginBottom: 16 }}>
-              <span style={{ fontSize: 14, color: "#333", display: "block", marginBottom: 8 }}>
-                Valor do Saque (mínimo R$ {summary?.minimum_withdrawal})
-              </span>
-              <input
-                type="number"
-                step="0.01"
-                min={summary?.minimum_withdrawal}
-                max={summary?.available_balance}
-                value={withdrawAmount}
-                onChange={(e) => setWithdrawAmount(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  border: "1px solid #ddd",
-                  borderRadius: 8,
-                  fontSize: 16,
-                }}
-                placeholder="0.00"
-              />
-            </label>
+            <p
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                marginBottom: 16,
+                color: "#059669",
+              }}
+            >
+              R$ {summary?.available_balance?.toFixed(2)}
+            </p>
+            <p style={{ fontSize: 12, color: "#6b7280", marginBottom: 16 }}>
+              Mínimo para saque: R$ {summary?.minimum_withdrawal?.toFixed(2)}
+            </p>
             <div style={{ display: "flex", gap: 12 }}>
               <button
                 onClick={() => setShowWithdrawModal(false)}
