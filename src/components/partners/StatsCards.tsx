@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -14,32 +13,12 @@ type DashboardStats = {
   conversion_rate?: number;
 };
 
-export default function StatsCards() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+interface StatsCardsProps {
+  stats: DashboardStats | null;
+  loading?: boolean;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      try {
-        // Placeholder: wire real endpoint later
-        const demo: DashboardStats = {
-          total_clicks: 0,
-          total_orders: 0,
-          total_commission: 0,
-          conversion_rate: 0,
-        };
-        if (!cancelled) setStats(demo);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+export default function StatsCards({ stats, loading = false }: StatsCardsProps) {
 
   const items = [
     {

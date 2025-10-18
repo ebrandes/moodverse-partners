@@ -3,14 +3,10 @@ import { useAuthStore } from "../stores/auth";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/analytics", label: "Analytics" },
-  { href: "/pagamentos", label: "Pagamentos" },
   { href: "/produtos", label: "Produtos" },
   { href: "/cupons", label: "Cupons" },
-  { href: "/ranking", label: "Ranking" },
+  { href: "/pagamentos", label: "Pagamentos" },
   { href: "/configuracoes", label: "Configurações" },
-  { href: "/health", label: "Health" },
-  { href: "/onboarding", label: "Onboarding" },
 ];
 
 export default function Layout() {

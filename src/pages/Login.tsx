@@ -18,12 +18,25 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(email, password);
+      const loginResponse = await login(email, password);
+      console.log("Login response:", loginResponse);
+      
       const me = await getMe();
+      console.log("User data:", me);
+      
       setUser(me);
       navigate(from, { replace: true });
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Login failed");
+      console.error("Login error:", err);
+      
+      // Extrair mensagem de erro do backend
+      const errorMessage = 
+        err?.response?.data?.error || 
+        err?.response?.data?.detail || 
+        err?.response?.data?.message ||
+        "Falha no login. Verifique suas credenciais.";
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

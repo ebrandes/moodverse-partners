@@ -1,31 +1,31 @@
-import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "../../components/ui/Card";
+import { useMemo } from "react";
 
-type DayData = { day: string; sales: number; commission: number };
+type DayData = { date: string; sales: number; commission: number; orders: number };
 
-export default function SalesChart() {
-  const [data, setData] = useState<DayData[]>([]);
-  const [max, setMax] = useState(1);
+interface SalesChartProps {
+  salesData: DayData[];
+}
 
-  useEffect(() => {
-    // Placeholder data until wired to analytics endpoint
-    const last7 = [
-      { day: "Sun", sales: 0, commission: 0 },
-      { day: "Mon", sales: 0, commission: 0 },
-      { day: "Tue", sales: 0, commission: 0 },
-      { day: "Wed", sales: 0, commission: 0 },
-      { day: "Thu", sales: 0, commission: 0 },
-      { day: "Fri", sales: 0, commission: 0 },
-      { day: "Sat", sales: 0, commission: 0 },
-    ];
-    setData(last7);
-    setMax(1);
-  }, []);
+export default function SalesChart({ salesData }: SalesChartProps) {
+  const data = useMemo(() => {
+    return salesData.map((d) => ({
+      day: new Date(d.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      sales: d.sales,
+      commission: d.commission,
+    }));
+  }, [salesData]);
+
+  const max = useMemo(() => {
+    const maxSales = Math.max(...data.map((d) => d.sales), 1);
+    const maxCommission = Math.max(...data.map((d) => d.commission), 1);
+    return Math.max(maxSales, maxCommission);
+  }, [data]);
 
   const totalSales = data.reduce((s, d) => s + d.sales, 0);
   const totalCommission = data.reduce((s, d) => s + d.commission, 0);
