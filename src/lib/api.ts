@@ -38,6 +38,33 @@ export async function getDashboardStats() {
   return data;
 }
 
+export async function getSales(params?: { limit?: number; days?: number }) {
+  const q = new URLSearchParams();
+  if (params?.limit) q.set("limit", String(params.limit));
+  if (params?.days) q.set("days", String(params.days));
+  const qs = q.toString();
+  const url = `/api/influencers/sales/${qs ? `?${qs}` : ""}`;
+  const { data } = await api.get(url);
+  return data as {
+    results: Array<{
+      order_id: number;
+      order_number: string;
+      date: string | null;
+      total: number;
+      commission_total: number;
+      items: Array<{
+        product: string;
+        product_type?: string | null;
+        category_ids?: number[];
+        quantity: number;
+        unit_commission: number;
+        total_commission: number;
+      }>;
+    }>;
+    count: number;
+  };
+}
+
 // ============================================================================
 // PERFIL
 // ============================================================================
