@@ -151,7 +151,7 @@ export async function getNotifications() {
   return data;
 }
 
-export async function getLeaderboard() {
-  const { data } = await api.get("/api/influencers/leaderboard/");
+export async function getLeaderboard(period: 'total' | 'month' | 'week' = 'month') {
+  const { data } = await api.get(`/api/influencers/leaderboard/?period=${period}`);
   return data;
 }
