@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/auth';
 import {
   CheckCircle2,
-  Circle,
   Copy,
   ExternalLink,
   Gift,
@@ -36,7 +35,6 @@ export default function OnboardingPage() {
 
   // Determine which steps are completed
   const hasPaymentInfo = !!(influencer?.pix_key || influencer?.bank_account);
-  const hasSocialMedia = !!(influencer?.instagram_handle || influencer?.tiktok_handle || influencer?.youtube_channel);
   const hasCoupon = !!couponCode;
 
   const steps: OnboardingStep[] = [
